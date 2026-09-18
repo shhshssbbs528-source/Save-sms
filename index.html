@@ -1,0 +1,197 @@
+111<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Personal SMS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    padding: 24px;
+  }
+  h1 {
+    text-align: center;
+    color: #4a3f8f;
+    margin-bottom: 20px;
+    font-size: 24px;
+  }
+  .input-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  textarea {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    font-size: 15px;
+    resize: vertical;
+    min-height: 70px;
+    font-family: inherit;
+  }
+  textarea:focus { outline: none; border-color: #667eea; }
+  button {
+    padding: 12px 20px;
+    background: #667eea;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+  }
+  button:hover { background: #5568d3; }
+  button:active { transform: scale(0.97); }
+
+  .sms-list { display: flex; flex-direction: column; gap: 12px; }
+  .sms-card {
+    background: #f4f6ff;
+    border-left: 5px solid #667eea;
+    border-radius: 10px;
+    padding: 14px;
+    position: relative;
+    word-wrap: break-word;
+  }
+  .sms-text { font-size: 15px; color: #333; margin-bottom: 10px; white-space: pre-wrap; }
+  .sms-date { font-size: 11px; color: #888; margin-bottom: 8px; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row button { padding: 7px 14px; font-size: 13px; }
+  .copy-btn { background: #28a745; }
+  .copy-btn:hover { background: #218838; }
+  .del-btn { background: #dc3545; }
+  .del-btn:hover { background: #c82333; }
+  .empty { text-align: center; color: #999; padding: 30px 0; font-size: 15px; }
+
+  /* Copy toast */
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #333;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    opacity: 0;
+    transition: 0.3s;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📩 My Personal SMS</h1>
+
+  <div class="input-box">
+    <textarea id="smsInput" placeholder="अपना SMS यहाँ लिखें..."></textarea>
+    <button onclick="saveSMS()">Save</button>
+  </div>
+
+  <div class="sms-list" id="smsList"></div>
+</div>
+
+<div id="toast">✅ Copy हो गया!</div>
+
+<script>
+// LocalStorage से SMS load करें
+let smsData = JSON.parse(localStorage.getItem('mySMS')) || [];
+
+function renderSMS() {
+  const list = document.getElementById('smsList');
+  list.innerHTML = '';
+
+  if (smsData.length === 0) {
+    list.innerHTML = '<div class="empty">अभी कोई SMS save नहीं है।</div>';
+    return;
+  }
+
+  // नए SMS सबसे ऊपर
+  smsData.slice().reverse().forEach((item, idx) => {
+    const realIndex = smsData.length - 1 - idx;
+    const card = document.createElement('div');
+    card.className = 'sms-card';
+    card.innerHTML = `
+      <div class="sms-date">${item.date}</div>
+      <div class="sms-text">${escapeHTML(item.text)}</div>
+      <div class="btn-row">
+        <button class="copy-btn" onclick="copySMS(${realIndex})">📋 Copy</button>
+        <button class="del-btn" onclick="deleteSMS(${realIndex})">🗑 Delete</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function saveSMS() {
+  const input = document.getElementById('smsInput');
+  const text = input.value.trim();
+  if (!text) { alert('कृपया कुछ लिखें!'); return; }
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('hi-IN') + ' ' + now.toLocaleTimeString('hi-IN');
+
+  smsData.push({ text: text, date: dateStr });
+  localStorage.setItem('mySMS', JSON.stringify(smsData));
+  input.value = '';
+  renderSMS();
+}
+
+function copySMS(index) {
+  const text = smsData[index].text;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('✅ Copy हो गया!');
+  }).catch(() => {
+    // Fallback for old browsers
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ Copy हो गया!');
+  });
+}
+
+function deleteSMS(index) {
+  if (confirm('क्या आप यह SMS delete करना चाहते हैं?')) {
+    smsData.splice(index, 1);
+    localStorage.setItem('mySMS', JSON.stringify(smsData));
+    renderSMS();
+  }
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+
+// Page open होते ही SMS दिखें
+renderSMS();
+</script>
+
+</body>
+</html>
